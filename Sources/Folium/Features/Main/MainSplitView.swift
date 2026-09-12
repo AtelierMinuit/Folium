@@ -52,6 +52,25 @@ public struct MainSplitView: View {
             BottomStatusBarView(model: model)
         }
         .searchable(text: $model.searchText, prompt: "Buscar por título, autor o URL...")
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button {
+                    model.inputURL = ""
+                    model.errorMessage = nil
+                    model.statusMessage = nil
+                } label: {
+                    Label("Nueva captura", systemImage: "plus")
+                }
+                .help("Nueva captura de enlace (⌘N)")
+
+                Button {
+                    model.isInspectorPresented.toggle()
+                } label: {
+                    Label("Inspector", systemImage: "sidebar.trailing")
+                }
+                .help("Alternar Inspector técnico (⌥⌘I)")
+            }
+        }
         .frame(
             minWidth: 1000, idealWidth: 1180,
             minHeight: 600, idealHeight: 760

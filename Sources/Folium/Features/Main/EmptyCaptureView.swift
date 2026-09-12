@@ -59,18 +59,61 @@ public struct EmptyCaptureView: View {
                 .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
                 .frame(maxWidth: 480)
 
-                Button {
-                    Task { await model.analyzeURL(environment: env) }
-                } label: {
-                    Text("Obtener documento")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 6)
+                HStack(spacing: 8) {
+                    Button {
+                        Task { await model.analyzeURL(environment: env) }
+                    } label: {
+                        Text("Obtener documento")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(model.inputURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.statusMessage != nil)
+
+                    if let clip = NSPasteboard.general.string(forType: .string)?
+                        .trimmingCharacters(in: .whitespacesAndNewlines),
+                       clip.hasPrefix("http://") || clip.hasPrefix("https://"),
+                       model.inputURL.isEmpty {
+                        Button {
+                            model.inputURL = clip
+                            Task { await model.analyzeURL(environment: env) }
+                        } label: {
+                            Label("Pegar enlace", systemImage: "doc.on.clipboard")
+                                .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.large)
+                    }
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
                 .frame(maxWidth: 480)
-                .disabled(model.inputURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.statusMessage != nil)
+
+                // Quick links educativos
+                HStack(spacing: 8) {
+                    Text("Ejemplos:")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+
+                    Button("arXiv Open Access") {
+                        model.inputURL = "https://arxiv.org/abs/2301.07041"
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .foregroundStyle(.blue)
+
+                    Text("•")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+
+                    Button("Documento Fixture") {
+                        model.setFixtureSample()
+                    }
+                    .buttonStyle(.plain)
+                    .font(.caption)
+                    .foregroundStyle(.blue)
+                }
+                .padding(.top, 2)
 
                 Text("o arrastra un enlace aquí")
                     .font(.subheadline)

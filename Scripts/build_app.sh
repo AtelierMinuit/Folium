@@ -1,34 +1,20 @@
 #!/bin/bash
 set -e
 
-echo "🔨 Compilando ScribeMac en modo Release..."
-swift build -c release
+echo "🔨 Compilando Folium en modo Release con xcodebuild..."
+xcodebuild -scheme Folium -configuration Release build CONFIGURATION_BUILD_DIR="$(pwd)/build" -quiet
 
-BIN_DIR=$(swift build -c release --show-bin-path)
-APP_DIR="ScribeMac.app"
-CONTENTS_DIR="${APP_DIR}/Contents"
-MACOS_DIR="${CONTENTS_DIR}/MacOS"
-RESOURCES_DIR="${CONTENTS_DIR}/Resources"
+echo "🔏 Sellando icono e instalando en bundle..."
+mkdir -p build/Folium.app/Contents/Resources
+cp Sources/Folium/Resources/AppIcon.icns build/Folium.app/Contents/Resources/AppIcon.icns
 
-echo "📦 Creando estructura de bundle ${APP_DIR}..."
-rm -rf "${APP_DIR}"
-mkdir -p "${MACOS_DIR}"
-mkdir -p "${RESOURCES_DIR}"
+echo "🔏 Firmando la aplicación (Hardened Runtime + App Sandbox)..."
+codesign --force --sign - -o runtime --entitlements "Sources/Folium/Resources/Folium.entitlements" "build/Folium.app"
 
-echo "📋 Copiando binario y recursos..."
-cp "${BIN_DIR}/ScribeMac" "${MACOS_DIR}/ScribeMac"
-cp "Sources/ScribeMac/Resources/Info.plist" "${CONTENTS_DIR}/Info.plist"
+echo "✅ Verificando firma y entitlements..."
+codesign --verify --verbose "build/Folium.app"
+codesign -dv --verbose=4 "build/Folium.app"
 
-# Copy any resources if available
-if [ -d "${BIN_DIR}/ScribeMacPackageTests.bundle" ]; then
-    cp -R "${BIN_DIR}/"*.bundle "${RESOURCES_DIR}/" 2>/dev/null || true
-fi
+echo "🎉 Folium.app empaquetada con éxito en $(pwd)/build/Folium.app"
+ls -ld "build/Folium.app"
 
-echo "🔏 Firmando la aplicación (Ad-hoc con Entitlements de mínimos privilegios)..."
-codesign --force --options runtime --entitlements "Sources/ScribeMac/Resources/ScribeMac.entitlements" --sign - "${APP_DIR}"
-
-echo "✅ Verificando firma..."
-codesign --verify --verbose "${APP_DIR}"
-
-echo "🎉 ScribeMac.app empaquetada con éxito en $(pwd)/${APP_DIR}"
-ls -ld "${APP_DIR}"

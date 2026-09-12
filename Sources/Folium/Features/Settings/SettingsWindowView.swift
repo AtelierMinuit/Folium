@@ -147,6 +147,26 @@ public struct SettingsWindowView: View {
 
             // Pestaña: Avanzado
             Form {
+                Section {
+                    HStack(spacing: 16) {
+                        Image("AppLogo")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 56, height: 56)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .shadow(color: Color.black.opacity(0.15), radius: 6, x: 0, y: 3)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Folium")
+                                .font(.headline)
+                            Text("Encuentra. Obtén. Organiza.")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+
                 Section("Acerca de Folium") {
                     LabeledContent("Versión") {
                         Text("1.0.0 (Producción)")

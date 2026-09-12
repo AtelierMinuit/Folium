@@ -15,10 +15,13 @@ public struct MenuBarCompanionView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Cabecera
-            HStack {
-                Image(systemName: "doc.text.magnifyingglass")
-                    .foregroundStyle(.tint)
+            // Cabecera con Logotipo Oficial
+            HStack(spacing: 8) {
+                Image("AppLogo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 22, height: 22)
+                    .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
                 Text("Folium")
                     .font(.headline)
                 Spacer()

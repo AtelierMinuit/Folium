@@ -12,17 +12,27 @@ public struct EmptyCaptureView: View {
         VStack(spacing: 32) {
             Spacer()
 
-            // Título principal
-            VStack(spacing: 8) {
-                Text("Folium")
-                    .font(.system(size: 40, weight: .bold, design: .rounded))
-                    .foregroundStyle(.primary)
-                
-                Text("Descarga y organiza documentos fácilmente")
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
+            // Identidad y Logotipo Oficial
+            VStack(spacing: 12) {
+                Image("AppLogo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 96, height: 96)
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .shadow(color: Color.blue.opacity(0.25), radius: 16, x: 0, y: 8)
+                    .shadow(color: Color.black.opacity(0.12), radius: 4, x: 0, y: 2)
+
+                VStack(spacing: 4) {
+                    Text("Folium")
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+
+                    Text("Encuentra. Obtén. Organiza.")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                }
             }
-            .padding(.bottom, 16)
+            .padding(.bottom, 8)
 
             // Campo central
             VStack(spacing: 16) {

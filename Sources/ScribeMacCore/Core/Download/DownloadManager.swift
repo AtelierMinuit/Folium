@@ -57,23 +57,30 @@ public actor DownloadManager {
         }
 
         do {
+            currentJob.recordTransition(.downloading, message: "Iniciando descarga de red en streaming...")
+
             // Handle file:// URLs (such as local fixtures)
             if downloadURL.isFileURL {
                 AppLogger.download.info("Procesando recurso local fixture: \(downloadURL.path)")
                 try FileManager.default.copyItem(at: downloadURL, to: tempIncomingURL)
                 let attr = try FileManager.default.attributesOfItem(atPath: tempIncomingURL.path)
                 let size = (attr[.size] as? Int64) ?? 0
+                currentJob.recordTransition(.downloading, message: "Recurso local fixture cargado (\(size) bytes)")
                 onProgress?(1.0, size, size)
             } else {
                 // Network download via URLSession
                 AppLogger.download.info("Iniciando descarga de red: \(downloadURL.absoluteString)")
-                try await downloadWithRetry(
+                let headers = try await downloadWithRetry(
                     from: downloadURL,
                     to: tempIncomingURL,
                     jobId: job.id,
                     maxRetries: 2,
                     onProgress: onProgress
                 )
+                currentJob.etag = headers["ETag"]
+                currentJob.serverName = headers["Server"]
+                currentJob.supportsRanges = headers["Accept-Ranges"]?.lowercased().contains("bytes") == true
+                currentJob.recordTransition(.downloading, message: "Respuesta HTTP recibida (Server: \(headers["Server"] ?? "desconocido"), ETag: \(headers["ETag"]?.prefix(8) ?? "ninguno"))")
             }
 
             // Step 1: Validate HTTP response and local file size
@@ -82,6 +89,7 @@ public actor DownloadManager {
             } catch {
                 let failedTarget = organizer.failedDirectory.appendingPathComponent("failed-\(job.id.uuidString).pdf")
                 try? FileManager.default.moveItem(at: tempIncomingURL, to: failedTarget)
+                currentJob.recordTransition(.failed, message: "Validación de tamaño o HTTP fallida: \(error.localizedDescription)")
                 currentJob.downloadStatus = .failed
                 currentJob.errorMessage = error.localizedDescription
                 currentJob.completedAt = Date()
@@ -89,16 +97,18 @@ public actor DownloadManager {
             }
 
             // Step 2: Validate PDF Structure & Magic Bytes
+            currentJob.recordTransition(.validating, message: "Validando cabecera mágica %PDF- y estructura PDFKit...")
             currentJob.downloadStatus = .validating
             let pdfValidation: PDFValidationResult
             do {
                 pdfValidation = try PDFValidator.validate(at: tempIncomingURL)
+                currentJob.recordTransition(.validating, message: "PDF válido (%PDF-\(pdfValidation.pdfVersion ?? "1.4"), \(pdfValidation.pageCount) páginas legibles)")
             } catch {
                 AppLogger.download.error("Validación de PDF fallida para \(job.id): \(error.localizedDescription)")
-                // Move to Failed/ folder for diagnostic analysis
                 let failedTarget = organizer.failedDirectory.appendingPathComponent("failed-\(job.id.uuidString).pdf")
                 try? FileManager.default.moveItem(at: tempIncomingURL, to: failedTarget)
 
+                currentJob.recordTransition(.failed, message: "Validación PDF fallida: \(error.localizedDescription)")
                 currentJob.downloadStatus = .failed
                 currentJob.errorMessage = "Validación PDF fallida: \(error.localizedDescription)"
                 currentJob.completedAt = Date()
@@ -106,9 +116,11 @@ public actor DownloadManager {
             }
 
             // Step 3: Compute SHA-256 via streaming
+            currentJob.recordTransition(.finalizing, message: "Calculando hash SHA-256 en bloques de 64 KB...")
             let sha256 = try FileHasher.sha256(for: tempIncomingURL)
             currentJob.sha256 = sha256
             currentJob.fileSize = pdfValidation.fileSize
+            currentJob.recordTransition(.finalizing, message: "Hash SHA-256 generado: \(sha256.prefix(12))...")
 
             // Step 4: Extract Metadata
             let pdfMeta = PDFMetadataReader.readMetadata(from: tempIncomingURL)
@@ -139,10 +151,12 @@ public actor DownloadManager {
                 AppLogger.filesystem.info("Documento idéntico ya presente en biblioteca: \(existingURL.path)")
                 finalDestinationURL = existingURL
                 currentJob.errorMessage = "Nota: Ya existía una copia idéntica en la biblioteca."
+                currentJob.recordTransition(.completed, message: "Copia idéntica existente reutilizada en Library/\(existingURL.lastPathComponent)")
             case .uniqueDestination(let targetURL):
                 AppLogger.filesystem.info("Moviendo archivo a biblioteca: \(targetURL.path)")
                 try FileManager.default.moveItem(at: tempIncomingURL, to: targetURL)
                 finalDestinationURL = targetURL
+                currentJob.recordTransition(.completed, message: "Archivo almacenado como Library/\(targetURL.lastPathComponent)")
             }
 
             currentJob.localPath = finalDestinationURL.path
@@ -157,6 +171,7 @@ public actor DownloadManager {
 
         } catch is CancellationError {
             AppLogger.download.info("Descarga cancelada por el usuario para trabajo \(job.id)")
+            currentJob.recordTransition(.cancelled, message: "Descarga cancelada por el usuario.")
             currentJob.downloadStatus = .cancelled
             currentJob.errorMessage = "Descarga cancelada por el usuario."
             currentJob.completedAt = Date()
@@ -167,6 +182,7 @@ public actor DownloadManager {
                 let failedTarget = organizer.failedDirectory.appendingPathComponent("failed-\(job.id.uuidString).pdf")
                 try? FileManager.default.moveItem(at: tempIncomingURL, to: failedTarget)
             }
+            currentJob.recordTransition(.failed, message: "Error en descarga: \(error.localizedDescription)")
             currentJob.downloadStatus = .failed
             currentJob.errorMessage = error.localizedDescription
             currentJob.completedAt = Date()
@@ -175,13 +191,14 @@ public actor DownloadManager {
     }
 
     // MARK: - Internal Download with Retries
+    /// Downloads the resource and returns HTTP response headers for metadata extraction.
     private func downloadWithRetry(
         from url: URL,
         to targetTempURL: URL,
         jobId: UUID,
         maxRetries: Int,
         onProgress: (@Sendable (Double, Int64, Int64) -> Void)?
-    ) async throws {
+    ) async throws -> [String: String] {
         var attempts = 0
         var lastError: Error?
 
@@ -195,8 +212,8 @@ public actor DownloadManager {
                 var request = URLRequest(url: url)
                 request.setValue("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15", forHTTPHeaderField: "User-Agent")
 
-                try await withTaskCancellationHandler {
-                    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                let responseHeaders: [String: String] = try await withTaskCancellationHandler {
+                    try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<[String: String], Error>) in
                         let downloadTask = self.session.downloadTask(with: request) { tempDownloadedURL, response, error in
                             if let error = error {
                                 let ns = error as NSError
@@ -217,7 +234,15 @@ public actor DownloadManager {
                                 try? FileManager.default.removeItem(at: targetTempURL)
                                 try FileManager.default.moveItem(at: tempDownloadedURL, to: targetTempURL)
                                 try self.validator.validateResponse(response)
-                                continuation.resume()
+
+                                // Extract HTTP response headers
+                                var headers: [String: String] = [:]
+                                if let httpResponse = response as? HTTPURLResponse {
+                                    for (key, value) in httpResponse.allHeaderFields {
+                                        headers[String(describing: key)] = String(describing: value)
+                                    }
+                                }
+                                continuation.resume(returning: headers)
                             } catch {
                                 continuation.resume(throwing: error)
                             }
@@ -235,7 +260,7 @@ public actor DownloadManager {
                 let attr = try FileManager.default.attributesOfItem(atPath: targetTempURL.path)
                 let size = (attr[.size] as? Int64) ?? 0
                 onProgress?(1.0, size, size)
-                return
+                return responseHeaders
 
             } catch is CancellationError {
                 throw CancellationError()
@@ -255,5 +280,8 @@ public actor DownloadManager {
         if let error = lastError {
             throw error
         }
+
+        // Fallback: should never reach here due to throw above
+        return [:]
     }
 }

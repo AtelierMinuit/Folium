@@ -1,6 +1,6 @@
 import Foundation
 
-/// Lifecycle status for a document processing / download job.
+/// Lifecycle status for a document processing / download job (legacy compatibility).
 public enum DownloadStatus: String, Codable, Sendable, CustomStringConvertible {
     case idle
     case inspecting
@@ -34,10 +34,11 @@ public struct DocumentJob: Identifiable, Sendable, Codable, Equatable {
     public var title: String?
     public var author: String?
     public var resourceStatus: ResourceStatus
-    public var downloadStatus: DownloadStatus
+    public var state: DocumentState
     public var progress: Double // 0.0 to 1.0
     public var bytesDownloaded: Int64
     public var totalBytes: Int64
+    public var speedBytesPerSecond: Double
     public var createdAt: Date
     public var completedAt: Date?
     public var localPath: String?
@@ -46,6 +47,38 @@ public struct DocumentJob: Identifiable, Sendable, Codable, Equatable {
     public var sha256: String?
     public var sourceURL: URL?
     public var errorMessage: String?
+    public var etag: String?
+    public var serverName: String?
+    public var supportsRanges: Bool
+    public var transitionLog: [StateTransitionEvent]
+
+    /// Legacy bridge mapping `downloadStatus` to/from `state`
+    public var downloadStatus: DownloadStatus {
+        get {
+            switch state {
+            case .received, .parsing, .resolvable: return .idle
+            case .inspecting: return .inspecting
+            case .queued: return .queued
+            case .downloading: return .downloading
+            case .validating, .finalizing: return .validating
+            case .completed: return .completed
+            case .failed, .restricted, .unsupported, .authenticationRequired: return .failed
+            case .cancelled: return .cancelled
+            }
+        }
+        set {
+            switch newValue {
+            case .idle: state = .received
+            case .inspecting: state = .inspecting
+            case .queued: state = .queued
+            case .downloading: state = .downloading
+            case .validating: state = .validating
+            case .completed: state = .completed
+            case .failed: state = .failed
+            case .cancelled: state = .cancelled
+            }
+        }
+    }
 
     public init(
         id: UUID = UUID(),
@@ -55,10 +88,12 @@ public struct DocumentJob: Identifiable, Sendable, Codable, Equatable {
         title: String? = nil,
         author: String? = nil,
         resourceStatus: ResourceStatus = .downloadable,
-        downloadStatus: DownloadStatus = .idle,
+        state: DocumentState = .received,
+        downloadStatus: DownloadStatus? = nil,
         progress: Double = 0.0,
         bytesDownloaded: Int64 = 0,
         totalBytes: Int64 = 0,
+        speedBytesPerSecond: Double = 0.0,
         createdAt: Date = Date(),
         completedAt: Date? = nil,
         localPath: String? = nil,
@@ -66,7 +101,11 @@ public struct DocumentJob: Identifiable, Sendable, Codable, Equatable {
         fileSize: Int64? = nil,
         sha256: String? = nil,
         sourceURL: URL? = nil,
-        errorMessage: String? = nil
+        errorMessage: String? = nil,
+        etag: String? = nil,
+        serverName: String? = nil,
+        supportsRanges: Bool = false,
+        transitionLog: [StateTransitionEvent] = []
     ) {
         self.id = id
         self.originalURL = originalURL
@@ -75,10 +114,24 @@ public struct DocumentJob: Identifiable, Sendable, Codable, Equatable {
         self.title = title
         self.author = author
         self.resourceStatus = resourceStatus
-        self.downloadStatus = downloadStatus
+        if let ds = downloadStatus {
+            switch ds {
+            case .idle: self.state = .received
+            case .inspecting: self.state = .inspecting
+            case .queued: self.state = .queued
+            case .downloading: self.state = .downloading
+            case .validating: self.state = .validating
+            case .completed: self.state = .completed
+            case .failed: self.state = .failed
+            case .cancelled: self.state = .cancelled
+            }
+        } else {
+            self.state = state
+        }
         self.progress = progress
         self.bytesDownloaded = bytesDownloaded
         self.totalBytes = totalBytes
+        self.speedBytesPerSecond = speedBytesPerSecond
         self.createdAt = createdAt
         self.completedAt = completedAt
         self.localPath = localPath
@@ -87,5 +140,35 @@ public struct DocumentJob: Identifiable, Sendable, Codable, Equatable {
         self.sha256 = sha256
         self.sourceURL = sourceURL
         self.errorMessage = errorMessage
+        self.etag = etag
+        self.serverName = serverName
+        self.supportsRanges = supportsRanges
+        self.transitionLog = transitionLog
+
+        if self.transitionLog.isEmpty {
+            self.transitionLog.append(
+                StateTransitionEvent(
+                    timestamp: createdAt,
+                    state: self.state,
+                    message: "Trabajo inicializado para: \(originalURL.host ?? originalURL.absoluteString)"
+                )
+            )
+        }
+    }
+
+    /// Records a technical state transition with a human-readable message and timestamp.
+    public mutating func recordTransition(
+        _ newState: DocumentState,
+        message: String,
+        metadata: [String: String]? = nil
+    ) {
+        self.state = newState
+        let event = StateTransitionEvent(
+            timestamp: Date(),
+            state: newState,
+            message: message,
+            metadata: metadata
+        )
+        self.transitionLog.append(event)
     }
 }

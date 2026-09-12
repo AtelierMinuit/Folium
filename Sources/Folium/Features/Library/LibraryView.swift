@@ -15,13 +15,21 @@ public struct LibraryView: View {
         case list = "Lista"
     }
 
-    public init() {}
+    private let onlyFavorites: Bool
+
+    public init(onlyFavorites: Bool = false) {
+        self.onlyFavorites = onlyFavorites
+    }
 
     private var filteredDocuments: [DocumentRecord] {
-        if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return documents
+        var docs = documents
+        if onlyFavorites {
+            docs = docs.filter { $0.isFavorite }
         }
-        return documents.filter { doc in
+        if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return docs
+        }
+        return docs.filter { doc in
             doc.title.localizedCaseInsensitiveContains(searchText) ||
             (doc.author?.localizedCaseInsensitiveContains(searchText) == true) ||
             doc.sha256.localizedCaseInsensitiveContains(searchText)
@@ -71,15 +79,17 @@ public struct LibraryView: View {
 
             if filteredDocuments.isEmpty {
                 VStack(spacing: 12) {
-                    Image(systemName: "books.vertical")
+                    Image(systemName: onlyFavorites ? "star.slash" : "books.vertical")
                         .font(.system(size: 40))
                         .foregroundStyle(.secondary.opacity(0.5))
-                    Text("No se encontraron documentos.")
+                    Text(onlyFavorites ? "No tienes favoritos guardados" : "Tu biblioteca está vacía")
                         .font(.headline)
                         .foregroundStyle(.secondary)
-                    Text("Los documentos descargados aparecerán aquí.")
+                    Text(onlyFavorites ? "Marca documentos con una estrella en su menú contextual para verlos aquí." : "Pega un enlace o descarga un documento para comenzar a construir tu biblioteca.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -108,7 +118,7 @@ public struct LibraryView: View {
                 }
             }
         }
-        .navigationTitle("Biblioteca")
+        .navigationTitle(onlyFavorites ? "Favoritos" : "Biblioteca")
     }
 }
 
@@ -134,6 +144,21 @@ struct LibraryGridCardView: View {
                     Image(systemName: "doc.richtext")
                         .font(.largeTitle)
                         .foregroundStyle(.tertiary)
+                }
+
+                if doc.isFavorite {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Image(systemName: "star.fill")
+                                .font(.caption)
+                                .foregroundStyle(.yellow)
+                                .padding(6)
+                                .background(.black.opacity(0.4), in: Circle())
+                                .padding(6)
+                        }
+                        Spacer()
+                    }
                 }
             }
             .contextMenu {
@@ -170,6 +195,10 @@ struct LibraryGridCardView: View {
         Button("Abrir") { openDocument() }
         Button("Mostrar en Finder") {
             NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: doc.localPath)])
+        }
+        Divider()
+        Button(doc.isFavorite ? "Quitar de Favoritos" : "Marcar como Favorito") {
+            doc.isFavorite.toggle()
         }
         Divider()
         Button("Copiar SHA-256") {
@@ -216,6 +245,12 @@ struct DocumentListRowView: View {
                     .foregroundStyle(.tertiary)
             }
             
+            if doc.isFavorite {
+                Image(systemName: "star.fill")
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
+            }
+
             Button("Abrir") {
                 NSWorkspace.shared.open(URL(fileURLWithPath: doc.localPath))
             }
@@ -225,6 +260,11 @@ struct DocumentListRowView: View {
             Button("Mostrar en Finder") {
                 NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: doc.localPath)])
             }
+            Divider()
+            Button(doc.isFavorite ? "Quitar de Favoritos" : "Marcar como Favorito") {
+                doc.isFavorite.toggle()
+            }
+            Divider()
             Button("Copiar SHA-256") {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(doc.sha256, forType: .string)

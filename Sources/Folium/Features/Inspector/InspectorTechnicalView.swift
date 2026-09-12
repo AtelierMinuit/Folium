@@ -101,9 +101,14 @@ public struct InspectorTechnicalView: View {
 
                 Divider()
 
-                // Sección: Detalles Técnicos (Timeline)
-                inspectorSection("Detalles Técnicos", icon: "clock.arrow.circlepath") {
+                // Sección: Detalles Técnicos (Disclosure Group progresivo)
+                DisclosureGroup {
                     TransitionLogTimelineView(events: job.transitionLog)
+                        .padding(.top, 4)
+                } label: {
+                    Label("Detalles técnicos", systemImage: "clock.arrow.circlepath")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(.primary)
                 }
 
                 // Botones de acción

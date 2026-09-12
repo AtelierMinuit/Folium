@@ -29,6 +29,20 @@ struct FoliumApp: App {
                     Task { @MainActor in
                         await appModel.pasteAndAnalyze(environment: environment)
                     }
+                },
+                onOpenSelected: {
+                    if let selectedId = appModel.selectedJobId {
+                        appModel.openDocument(id: selectedId, queue: environment.queue)
+                    }
+                },
+                onQuickLook: {
+                    if let selectedId = appModel.selectedJobId {
+                        appModel.openDocument(id: selectedId, queue: environment.queue)
+                    }
+                },
+                onFind: {
+                    appModel.isInspectorPresented = false
+                    appModel.selectedCategory = .biblioteca
                 }
             )
         }

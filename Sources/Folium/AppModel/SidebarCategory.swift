@@ -8,6 +8,7 @@ public enum SidebarCategory: String, CaseIterable, Identifiable, Hashable {
     case cola = "En cola"
     case terminados = "Terminados"
     case errores = "Errores"
+    case favoritos = "Favoritos"
 
     public var id: String { rawValue }
 
@@ -18,6 +19,7 @@ public enum SidebarCategory: String, CaseIterable, Identifiable, Hashable {
         case .cola: return "clock"
         case .terminados: return "checkmark.circle"
         case .errores: return "exclamationmark.triangle"
+        case .favoritos: return "star"
         }
     }
 
@@ -42,6 +44,8 @@ public enum SidebarCategory: String, CaseIterable, Identifiable, Hashable {
             return jobs.filter { $0.state == .completed }
         case .errores: 
             return jobs.filter { $0.state.isTerminal && $0.state != .completed }
+        case .favoritos:
+            return [] // Favoritos consulta DocumentRecord en SwiftData
         }
     }
 

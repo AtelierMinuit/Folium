@@ -14,7 +14,7 @@ public struct EmptyCaptureView: View {
 
             // Título principal
             VStack(spacing: 8) {
-                Text("Scribe")
+                Text("Folium")
                     .font(.system(size: 40, weight: .bold, design: .rounded))
                     .foregroundStyle(.primary)
                 

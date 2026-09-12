@@ -63,10 +63,18 @@ public struct MainSplitView: View {
     @ViewBuilder
     private var sidebarContent: some View {
         List(selection: $model.selectedCategory) {
-            ForEach(SidebarCategory.allCases) { category in
-                NavigationLink(value: category) {
-                    Label(category.rawValue, systemImage: category.icon)
-                        .badge(category == .biblioteca ? 0 : model.badgeCount(for: category, queue: env.queue))
+            Section("Bandeja") {
+                ForEach([SidebarCategory.biblioteca, .descargas, .cola, .terminados, .errores]) { category in
+                    NavigationLink(value: category) {
+                        Label(category.rawValue, systemImage: category.icon)
+                            .badge(category == .biblioteca ? 0 : model.badgeCount(for: category, queue: env.queue))
+                    }
+                }
+            }
+
+            Section("Colecciones") {
+                NavigationLink(value: SidebarCategory.favoritos) {
+                    Label(SidebarCategory.favoritos.rawValue, systemImage: SidebarCategory.favoritos.icon)
                 }
             }
         }
@@ -79,7 +87,9 @@ public struct MainSplitView: View {
     @ViewBuilder
     private var contentArea: some View {
         if model.selectedCategory == .biblioteca {
-            LibraryView()
+            LibraryView(onlyFavorites: false)
+        } else if model.selectedCategory == .favoritos {
+            LibraryView(onlyFavorites: true)
         } else {
             queueContentArea
         }

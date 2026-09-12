@@ -2,35 +2,35 @@
 import PackageDescription
 
 let package = Package(
-    name: "ScribeMac",
+    name: "Folium",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "ScribeMac", targets: ["ScribeMac"]),
-        .library(name: "ScribeMacCore", targets: ["ScribeMacCore"])
+        .executable(name: "Folium", targets: ["Folium"]),
+        .library(name: "FoliumCore", targets: ["FoliumCore"])
     ],
     targets: [
         .target(
-            name: "ScribeMacCore",
-            path: "Sources/ScribeMacCore",
+            name: "FoliumCore",
+            path: "Sources/FoliumCore",
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]
         ),
         .executableTarget(
-            name: "ScribeMac",
-            dependencies: ["ScribeMacCore"],
-            path: "Sources/ScribeMac",
+            name: "Folium",
+            dependencies: ["FoliumCore"],
+            path: "Sources/Folium",
             exclude: ["Resources"],
             swiftSettings: [
                 .enableUpcomingFeature("StrictConcurrency")
             ]
         ),
         .testTarget(
-            name: "ScribeMacTests",
-            dependencies: ["ScribeMacCore"],
-            path: "Tests/ScribeMacTests",
+            name: "FoliumTests",
+            dependencies: ["FoliumCore"],
+            path: "Tests/FoliumTests",
             resources: [
                 .copy("../Fixtures")
             ],

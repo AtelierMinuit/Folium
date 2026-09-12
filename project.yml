@@ -1,0 +1,43 @@
+name: Folium
+options:
+  bundleIdPrefix: cl.jorgemunoz
+targets:
+  Folium:
+    type: application
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources/Folium
+    dependencies:
+      - target: FoliumCore
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: cl.jorgemunoz.folium
+      ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+      CODE_SIGN_ENTITLEMENTS: Sources/Folium/Resources/Folium.entitlements
+      INFOPLIST_FILE: Sources/Folium/Resources/Info.plist
+      SWIFT_VERSION: 6.0
+      SWIFT_STRICT_CONCURRENCY: complete
+      GENERATE_INFOPLIST_FILE: NO
+
+  FoliumCore:
+    type: library.static
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Sources/FoliumCore
+    settings:
+      SWIFT_VERSION: 6.0
+      SWIFT_STRICT_CONCURRENCY: complete
+
+  FoliumTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: Tests/FoliumTests
+    dependencies:
+      - target: Folium
+      - target: FoliumCore
+    settings:
+      SWIFT_VERSION: 6.0
+      SWIFT_STRICT_CONCURRENCY: complete

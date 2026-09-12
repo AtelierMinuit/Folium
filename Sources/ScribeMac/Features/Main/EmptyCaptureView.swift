@@ -9,36 +9,33 @@ public struct EmptyCaptureView: View {
     @State private var isDropTargeted = false
 
     public var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 32) {
             Spacer()
 
-            // Icono principal
-            Image(systemName: "doc.text.magnifyingglass")
-                .font(.system(size: 56))
-                .foregroundStyle(.tint)
-                .symbolEffect(.pulse, options: .repeating.speed(0.5))
-
-            // Título y subtítulo
-            VStack(spacing: 6) {
-                Text("Pega un enlace de documento")
-                    .font(.title2.bold())
-                Text("Analiza, descarga y organiza documentos públicos de forma segura.")
-                    .font(.subheadline)
+            // Título principal
+            VStack(spacing: 8) {
+                Text("Scribe")
+                    .font(.system(size: 40, weight: .bold, design: .rounded))
+                    .foregroundStyle(.primary)
+                
+                Text("Descarga y organiza documentos fácilmente")
+                    .font(.title2)
                     .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
             }
+            .padding(.bottom, 16)
 
-            // Campo de entrada + acciones
-            VStack(spacing: 12) {
-                HStack(spacing: 8) {
+            // Campo central
+            VStack(spacing: 16) {
+                HStack(spacing: 12) {
                     Image(systemName: "link")
+                        .font(.title3)
                         .foregroundStyle(.secondary)
 
-                    TextField("https://... o scribemac://fixture/...", text: $model.inputURL)
+                    TextField("Pega aquí un enlace...", text: $model.inputURL)
                         .textFieldStyle(.plain)
-                        .font(.system(.body, design: .monospaced))
+                        .font(.title3)
                         .onSubmit {
-                            Task { await model.analyzeAndEnqueue(environment: env) }
+                            Task { await model.analyzeURL(environment: env) }
                         }
 
                     if !model.inputURL.isEmpty {
@@ -51,98 +48,57 @@ public struct EmptyCaptureView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(12)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
                 .background(Color(nsColor: .controlBackgroundColor))
-                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .stroke(isDropTargeted ? Color.accentColor : Color.secondary.opacity(0.2), lineWidth: isDropTargeted ? 2 : 1)
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(isDropTargeted ? Color.accentColor : Color.secondary.opacity(0.15), lineWidth: isDropTargeted ? 2 : 1)
                 )
+                .shadow(color: .black.opacity(0.05), radius: 5, x: 0, y: 2)
+                .frame(maxWidth: 480)
 
-                HStack(spacing: 12) {
-                    Button {
-                        model.pasteFromClipboard()
-                    } label: {
-                        Label("Pegar", systemImage: "doc.on.clipboard")
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button {
-                        Task { await model.analyzeAndEnqueue(environment: env) }
-                    } label: {
-                        if model.isAnalyzing {
-                            ProgressView().controlSize(.small)
-                        } else {
-                            Label("Analizar", systemImage: "arrow.right.circle.fill")
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(model.inputURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.isAnalyzing)
+                Button {
+                    Task { await model.analyzeURL(environment: env) }
+                } label: {
+                    Text("Obtener documento")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
                 }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .frame(maxWidth: 480)
+                .disabled(model.inputURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.statusMessage != nil)
+
+                Text("o arrastra un enlace aquí")
+                    .font(.subheadline)
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 4)
             }
-            .frame(maxWidth: 500)
 
-            // Mensajes de error o estado
+            // Mensajes (ocultos si no hay)
             if let error = model.errorMessage {
-                HStack {
-                    Image(systemName: "exclamationmark.triangle.fill")
-                        .foregroundStyle(.red)
-                    Text(error)
-                        .font(.subheadline)
-                        .foregroundStyle(.red)
-                }
-                .padding(10)
-                .frame(maxWidth: 500, alignment: .leading)
-                .background(Color.red.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                Text(error)
+                    .font(.subheadline)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 16)
+                    .frame(maxWidth: 480)
             }
 
             if let status = model.statusMessage {
-                HStack {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
                     Text(status)
                         .font(.subheadline)
-                        .foregroundStyle(.green)
+                        .foregroundStyle(.secondary)
                 }
-                .padding(10)
-                .frame(maxWidth: 500, alignment: .leading)
-                .background(Color.green.opacity(0.1))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .padding(.top, 16)
             }
 
-            // Ejemplos rápidos
-            HStack(spacing: 8) {
-                Text("Ejemplos:")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Button("Scribd (Restringido)") {
-                    model.setScribdSample()
-                    Task { await model.analyzeAndEnqueue(environment: env) }
-                }
-                .buttonStyle(.link)
-                .font(.caption)
-
-                Text("•").font(.caption).foregroundStyle(.secondary)
-
-                Button("arXiv (Abierto)") {
-                    model.setArXivSample()
-                    Task { await model.analyzeAndEnqueue(environment: env) }
-                }
-                .buttonStyle(.link)
-                .font(.caption)
-
-                Text("•").font(.caption).foregroundStyle(.secondary)
-
-                Button("Fixture Local") {
-                    model.setFixtureSample()
-                    Task { await model.analyzeAndEnqueue(environment: env) }
-                }
-                .buttonStyle(.link)
-                .font(.caption)
-            }
-
+            Spacer()
             Spacer()
         }
         .padding(32)
@@ -153,7 +109,7 @@ public struct EmptyCaptureView: View {
                 if let url = url {
                     Task { @MainActor in
                         model.inputURL = url.absoluteString
-                        await model.analyzeAndEnqueue(environment: env)
+                        await model.analyzeURL(environment: env)
                     }
                 }
             }

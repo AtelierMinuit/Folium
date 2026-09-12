@@ -8,7 +8,12 @@ public struct LibraryView: View {
     @Query(sort: \DocumentRecord.addedAt, order: .reverse) private var documents: [DocumentRecord]
 
     @State private var searchText = ""
-    @State private var selectedDocument: DocumentRecord?
+    @AppStorage("libraryViewMode") private var viewMode: ViewMode = .grid
+
+    enum ViewMode: String {
+        case grid = "Portadas"
+        case list = "Lista"
+    }
 
     public init() {}
 
@@ -24,14 +29,14 @@ public struct LibraryView: View {
     }
 
     public var body: some View {
-        HSplitView {
-            // Left: List of Documents
-            VStack(spacing: 0) {
+        VStack(spacing: 0) {
+            // Toolbar customizada
+            HStack {
                 // Search bar
-                HStack {
+                HStack(spacing: 8) {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(.secondary)
-                    TextField("Buscar en biblioteca por título o autor...", text: $searchText)
+                    TextField("Buscar en biblioteca...", text: $searchText)
                         .textFieldStyle(.plain)
                     if !searchText.isEmpty {
                         Button {
@@ -43,71 +48,138 @@ public struct LibraryView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(10)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
                 .background(Color(nsColor: .controlBackgroundColor))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color.secondary.opacity(0.1), lineWidth: 1))
+                .frame(width: 250)
 
-                Divider()
+                Spacer()
 
-                if filteredDocuments.isEmpty {
-                    VStack(spacing: 12) {
-                        Image(systemName: "books.vertical")
-                            .font(.system(size: 40))
-                            .foregroundStyle(.secondary.opacity(0.5))
-                        Text("No se encontraron documentos.")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                        Text("Los documentos descargados y validados aparecerán aquí.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                } else {
-                    List(filteredDocuments, selection: $selectedDocument) { doc in
-                        DocumentListRowView(doc: doc)
-                            .tag(doc)
-                            .contextMenu {
-                                Button("Abrir en Visor") {
-                                    NSWorkspace.shared.open(URL(fileURLWithPath: doc.localPath))
-                                }
-                                Button("Mostrar en Finder") {
-                                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: doc.localPath)])
-                                }
-                                Button("Copiar Hash SHA-256") {
-                                    NSPasteboard.general.clearContents()
-                                    NSPasteboard.general.setString(doc.sha256, forType: .string)
-                                }
-                                Divider()
-                                Button("Eliminar de la Biblioteca", role: .destructive) {
-                                    try? env.store.deleteDocument(doc, removeFile: false)
-                                    if selectedDocument?.id == doc.id {
-                                        selectedDocument = nil
-                                    }
-                                }
+                Picker("Modo de vista", selection: $viewMode) {
+                    Label("Portadas", systemImage: "square.grid.2x2").tag(ViewMode.grid)
+                    Label("Lista", systemImage: "list.bullet").tag(ViewMode.list)
+                }
+                .pickerStyle(.segmented)
+                .frame(width: 150)
+            }
+            .padding(12)
+            .background(Color(nsColor: .windowBackgroundColor))
+
+            Divider()
+
+            if filteredDocuments.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "books.vertical")
+                        .font(.system(size: 40))
+                        .foregroundStyle(.secondary.opacity(0.5))
+                    Text("No se encontraron documentos.")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+                    Text("Los documentos descargados aparecerán aquí.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                ScrollView {
+                    if viewMode == .grid {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 140, maximum: 180), spacing: 20)], spacing: 20) {
+                            ForEach(filteredDocuments) { doc in
+                                LibraryGridCardView(doc: doc)
                             }
+                        }
+                        .padding(20)
+                    } else {
+                        LazyVStack(spacing: 0) {
+                            ForEach(filteredDocuments) { doc in
+                                DocumentListRowView(doc: doc)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Color(nsColor: .controlBackgroundColor))
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                    .padding(.horizontal, 20)
+                                    .padding(.vertical, 4)
+                            }
+                        }
+                        .padding(.vertical, 12)
                     }
-                    .listStyle(.inset)
                 }
             }
-            .frame(minWidth: 320, idealWidth: 380, maxWidth: 500)
-
-            // Right: Detail & PDFKit Preview
-            Group {
-                if let doc = selectedDocument {
-                    DocumentDetailPreviewView(doc: doc)
-                } else {
-                    VStack(spacing: 12) {
-                        Image(systemName: "doc.viewfinder")
-                            .font(.system(size: 48))
-                            .foregroundStyle(.secondary.opacity(0.4))
-                        Text("Selecciona un documento para previsualizarlo.")
-                            .font(.headline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .frame(minWidth: 400)
         }
+        .navigationTitle("Biblioteca")
+    }
+}
+
+// MARK: - Grid Card View
+struct LibraryGridCardView: View {
+    let doc: DocumentRecord
+    @State private var thumbnail: NSImage?
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color(nsColor: .controlBackgroundColor))
+                    .aspectRatio(0.7, contentMode: .fit)
+                    .shadow(color: .black.opacity(0.1), radius: 3, x: 0, y: 1)
+                
+                if let image = thumbnail {
+                    Image(nsImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                } else {
+                    Image(systemName: "doc.richtext")
+                        .font(.largeTitle)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .contextMenu {
+                contextMenuContent
+            }
+            .onTapGesture(count: 2) {
+                openDocument()
+            }
+            
+            VStack(alignment: .leading, spacing: 2) {
+                Text(doc.title)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(2)
+                if let author = doc.author {
+                    Text(author)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .padding(.horizontal, 2)
+        }
+        .task {
+            if FileManager.default.fileExists(atPath: doc.localPath) {
+                if let img = try? await ThumbnailService.shared.generateNSImage(for: URL(fileURLWithPath: doc.localPath), targetSize: CGSize(width: 140, height: 200)) {
+                    thumbnail = img
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var contextMenuContent: some View {
+        Button("Abrir") { openDocument() }
+        Button("Mostrar en Finder") {
+            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: doc.localPath)])
+        }
+        Divider()
+        Button("Copiar SHA-256") {
+            NSPasteboard.general.clearContents()
+            NSPasteboard.general.setString(doc.sha256, forType: .string)
+        }
+    }
+    
+    private func openDocument() {
+        NSWorkspace.shared.open(URL(fileURLWithPath: doc.localPath))
     }
 }
 
@@ -116,114 +188,46 @@ struct DocumentListRowView: View {
     let doc: DocumentRecord
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(doc.title)
-                .font(.headline)
-                .lineLimit(1)
-            if let author = doc.author, !author.isEmpty {
-                Text(author)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        HStack(spacing: 16) {
+            Image(systemName: "doc.fill")
+                .font(.title2)
+                .foregroundStyle(.blue.opacity(0.8))
+                
+            VStack(alignment: .leading, spacing: 4) {
+                Text(doc.title)
+                    .font(.headline)
                     .lineLimit(1)
-            }
-            HStack(spacing: 8) {
-                Label("\(doc.pageCount) pág.", systemImage: "doc")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Label(formatBytes(doc.fileSize), systemImage: "internaldrive")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Text(doc.providerName.capitalized)
-                    .font(.caption2)
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 1)
-                    .background(Color.secondary.opacity(0.15))
-                    .clipShape(RoundedRectangle(cornerRadius: 3))
-            }
-        }
-        .padding(.vertical, 4)
-    }
-
-    private func formatBytes(_ bytes: Int64) -> String {
-        let formatter = ByteCountFormatter()
-        formatter.allowedUnits = [.useAll]
-        formatter.countStyle = .file
-        return formatter.string(fromByteCount: bytes)
-    }
-}
-
-// MARK: - Detail Preview View
-struct DocumentDetailPreviewView: View {
-    @Environment(AppEnvironment.self) private var env
-    let doc: DocumentRecord
-
-    var body: some View {
-        let fileURL = URL(fileURLWithPath: doc.localPath)
-        let exists = FileManager.default.fileExists(atPath: doc.localPath)
-
-        VStack(alignment: .leading, spacing: 12) {
-            // Document action bar
-            HStack {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(doc.title)
-                        .font(.title3.bold())
-                    if let author = doc.author {
-                        Text(author)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                Spacer()
-
-                Button("Abrir") {
-                    NSWorkspace.shared.open(fileURL)
-                }
-                .buttonStyle(.bordered)
-                .disabled(!exists)
-
-                Button("Mostrar en Finder") {
-                    NSWorkspace.shared.activateFileViewerSelecting([fileURL])
-                }
-                .buttonStyle(.bordered)
-                .disabled(!exists)
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 16)
-
-            // Technical metadata badges
-            HStack(spacing: 12) {
-                Label("Páginas: \(doc.pageCount)", systemImage: "doc.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Label("Tamaño: \(formatBytes(doc.fileSize))", systemImage: "scalemass.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Label("Hash: \(doc.sha256.prefix(12))...", systemImage: "number")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .help(doc.sha256)
-            }
-            .padding(.horizontal, 16)
-
-            Divider()
-
-            // PDFKit embedded reader
-            if exists {
-                PDFPreviewView(url: fileURL)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
-            } else {
-                VStack(spacing: 8) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.red)
-                    Text("El archivo físico no se encuentra en la ruta: \(doc.localPath)")
+                if let author = doc.author, !author.isEmpty {
+                    Text(author)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            
+            Spacer()
+            
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(formatBytes(doc.fileSize))
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                Text(doc.addedAt, style: .date)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            
+            Button("Abrir") {
+                NSWorkspace.shared.open(URL(fileURLWithPath: doc.localPath))
+            }
+            .buttonStyle(.bordered)
+        }
+        .contextMenu {
+            Button("Mostrar en Finder") {
+                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: doc.localPath)])
+            }
+            Button("Copiar SHA-256") {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(doc.sha256, forType: .string)
             }
         }
     }

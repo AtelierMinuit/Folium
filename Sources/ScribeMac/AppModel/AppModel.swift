@@ -10,10 +10,11 @@ import AppKit
 public final class AppModel {
     // MARK: - Estado de Selección y Navegación
 
-    public var selectedCategory: SidebarCategory = .todos
+    public var selectedCategory: SidebarCategory = .descargas
     public var selectedJobId: UUID?
     public var searchText: String = ""
     public var isInspectorPresented: Bool = false
+    public var refreshTrigger: Bool = false
 
     // MARK: - Estado de Captura
 
@@ -72,8 +73,8 @@ public final class AppModel {
 
     // MARK: - Acciones
 
-    /// Analiza una URL y crea un trabajo en la cola si es descargable.
-    public func analyzeAndEnqueue(environment: AppEnvironment) async {
+    /// Analiza una URL y la añade a la cola en estado resolvable (reconocido).
+    public func analyzeURL(environment: AppEnvironment) async {
         let trimmedInput = inputURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedInput.isEmpty else {
             errorMessage = "Introduce o pega una URL para comenzar."
@@ -81,9 +82,7 @@ public final class AppModel {
         }
 
         errorMessage = nil
-        statusMessage = nil
-        isAnalyzing = true
-        defer { isAnalyzing = false }
+        statusMessage = "Buscando documento..."
 
         do {
             let normalizedURL = try URLNormalizer.normalize(trimmedInput)
@@ -95,7 +94,7 @@ public final class AppModel {
             AppLogger.general.info("Analizando URL con proveedor: \(provider.displayName)")
             let result = try await provider.inspect(normalizedURL)
 
-            let job = DocumentJob(
+            var job = DocumentJob(
                 originalURL: result.originalURL,
                 canonicalURL: result.canonicalURL,
                 provider: result.providerIdentifier,
@@ -108,12 +107,12 @@ public final class AppModel {
 
             if result.resourceStatus.isActionable {
                 let downloadResolution = try await provider.resolveDownload(result.canonicalURL)
-                environment.queue.enqueue(
-                    job: job,
-                    downloadURL: downloadResolution.url,
-                    suggestedFilename: downloadResolution.suggestedFilename
-                )
-                statusMessage = "Descarga añadida a la cola."
+                job.sourceURL = downloadResolution.url // Guardamos la URL resuelta para después
+                
+                // Añadimos a la cola en estado reconocido
+                environment.queue.addRecognized(job: job)
+                
+                statusMessage = nil
                 inputURL = ""
             } else {
                 errorMessage = "Recurso clasificado como '\(result.resourceStatus.description)'. No se puede descargar."
@@ -125,6 +124,13 @@ public final class AppModel {
             AppLogger.general.error("Error al analizar: \(error.localizedDescription)")
             errorMessage = error.localizedDescription
         }
+    }
+    
+    /// Confirma la descarga de un trabajo reconocido.
+    public func confirmDownload(id: UUID, queue: DownloadQueue) {
+        guard let job = queue.jobs.first(where: { $0.id == id }),
+              let downloadURL = job.sourceURL else { return }
+        queue.startDownload(jobId: id, downloadURL: downloadURL, suggestedFilename: job.title)
     }
 
     /// Pega la URL del portapapeles en el campo de entrada sin analizar.
@@ -140,7 +146,7 @@ public final class AppModel {
         if let string = NSPasteboard.general.string(forType: .string)?
             .trimmingCharacters(in: .whitespacesAndNewlines), !string.isEmpty {
             inputURL = string
-            await analyzeAndEnqueue(environment: environment)
+            await analyzeURL(environment: environment)
         }
     }
 

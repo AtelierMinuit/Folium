@@ -8,6 +8,10 @@ public struct SettingsWindowView: View {
     @Environment(AppEnvironment.self) private var env
 
     @State private var selectedDirectory: URL?
+    @AppStorage("maxConcurrentDownloads") private var maxConcurrent = 3
+    @AppStorage("afterDownloadAction") private var afterAction = "notification"
+    @AppStorage("fetchCoverAuto") private var fetchCover = true
+    @AppStorage("showNotification") private var showNotification = true
     @State private var showingDirectoryPicker = false
 
     public init() {}
@@ -57,7 +61,19 @@ public struct SettingsWindowView: View {
             // Sección: Comportamiento
             Section("Comportamiento") {
                 Toggle("Detectar URLs automáticamente en el portapapeles", isOn: $env.autoCheckClipboard)
-                    .help("Cuando está activo, el MenuBarExtra detecta automáticamente URLs copiadas al portapapeles.")
+                
+                Stepper(value: $maxConcurrent, in: 1...10) {
+                    Text("Descargas simultáneas: \(maxConcurrent)")
+                }
+                
+                Picker("Después de descargar", selection: $afterAction) {
+                    Text("Abrir documento").tag("open")
+                    Text("Solo mostrar notificación").tag("notification")
+                }
+                
+                Toggle("Obtener portada automáticamente", isOn: $fetchCover)
+                
+                Toggle("Mostrar notificación al terminar", isOn: $showNotification)
             }
 
             // Sección: Acerca de

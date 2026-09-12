@@ -63,20 +63,10 @@ public struct MainSplitView: View {
     @ViewBuilder
     private var sidebarContent: some View {
         List(selection: $model.selectedCategory) {
-            Section("Bandeja") {
-                ForEach(SidebarCategory.allCases) { category in
-                    NavigationLink(value: category) {
-                        Label(category.rawValue, systemImage: category.icon)
-                            .badge(model.badgeCount(for: category, queue: env.queue))
-                    }
-                }
-            }
-
-            Section("Biblioteca") {
-                NavigationLink {
-                    LibraryView()
-                } label: {
-                    Label("Documentos", systemImage: "books.vertical")
+            ForEach(SidebarCategory.allCases) { category in
+                NavigationLink(value: category) {
+                    Label(category.rawValue, systemImage: category.icon)
+                        .badge(category == .biblioteca ? 0 : model.badgeCount(for: category, queue: env.queue))
                 }
             }
         }
@@ -88,6 +78,16 @@ public struct MainSplitView: View {
 
     @ViewBuilder
     private var contentArea: some View {
+        if model.selectedCategory == .biblioteca {
+            LibraryView()
+        } else {
+            queueContentArea
+        }
+    }
+
+    @ViewBuilder
+    private var queueContentArea: some View {
+        let _ = model.refreshTrigger
         let jobs = model.filteredJobs(from: env.queue)
 
         if jobs.isEmpty && env.queue.jobs.isEmpty {
@@ -100,7 +100,7 @@ public struct MainSplitView: View {
                 Text("Sin resultados")
                     .font(.headline)
                     .foregroundStyle(.secondary)
-                Text("No hay documentos que coincidan con tu búsqueda o filtro.")
+                Text("No hay documentos que coincidan con el filtro actual.")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
             }
@@ -111,6 +111,7 @@ public struct MainSplitView: View {
                 selectedJobId: $model.selectedJobId,
                 model: model
             )
+            .navigationTitle(model.selectedCategory.rawValue)
         }
     }
 }

@@ -13,13 +13,23 @@ public final class DownloadQueue {
         self.downloadManager = downloadManager
     }
 
-    /// Enqueues a new document job and begins processing.
-    public func enqueue(job: DocumentJob, downloadURL: URL, suggestedFilename: String? = nil) {
+    /// Adds a recognized job to the queue without starting it.
+    public func addRecognized(job: DocumentJob) {
         var mutableJob = job
-        mutableJob.downloadStatus = .queued
+        mutableJob.state = .resolvable
+        mutableJob.recordTransition(.resolvable, message: "Documento reconocido y listo para descargar")
         jobs.insert(mutableJob, at: 0)
+    }
 
-        let jobId = mutableJob.id
+    /// Starts processing a job that is already in the queue.
+    public func startDownload(jobId: UUID, downloadURL: URL, suggestedFilename: String? = nil) {
+        guard let idx = jobs.firstIndex(where: { $0.id == jobId }) else { return }
+        
+        jobs[idx].state = .queued
+        jobs[idx].recordTransition(.queued, message: "Añadido a la cola de descargas")
+        
+        let mutableJob = jobs[idx]
+
         let task = Task { [weak self] in
             guard let self = self else { return }
             do {
@@ -40,6 +50,14 @@ public final class DownloadQueue {
         }
 
         activeTasks[jobId] = task
+    }
+
+    /// Enqueues a new document job and begins processing immediately (legacy).
+    public func enqueue(job: DocumentJob, downloadURL: URL, suggestedFilename: String? = nil) {
+        var mutableJob = job
+        mutableJob.state = .queued
+        jobs.insert(mutableJob, at: 0)
+        startDownload(jobId: mutableJob.id, downloadURL: downloadURL, suggestedFilename: suggestedFilename)
     }
 
     /// Cancels a job.

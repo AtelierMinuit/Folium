@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Folium — Utilidad documental nativa para macOS</title>
+    <meta name="description" content="Encuentra. Obtén. Organiza. La utilidad documental nativa, rápida y privada para macOS.">
+    <link rel="icon" type="image/png" href="assets/app-icon.png">
+    
+    <!-- OpenGraph / Twitter -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Folium — Utilidad documental para macOS">
+    <meta property="og:description" content="Encuentra. Obtén. Organiza. Diseñada con precisión para macOS Sonoma y Sequoia.">
+    <meta property="og:image" content="assets/app-icon.png">
+
+    <style>
+        :root {
+            --folium-blue: #2563EB;
+            --folium-indigo: #6366F1;
+            --folium-leaf: #22C55E;
+            --bg-color: #0d1117;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #f0f6fc;
+            --text-secondary: #8b949e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            max-width: 1080px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        /* Hero */
+        header {
+            padding: 80px 0 60px;
+            text-align: center;
+            position: relative;
+        }
+
+        .icon-wrapper {
+            margin-bottom: 24px;
+            display: inline-block;
+            position: relative;
+        }
+
+        .app-icon {
+            width: 140px;
+            height: 140px;
+            border-radius: 32px;
+            box-shadow: 0 20px 50px rgba(37, 99, 235, 0.35);
+            display: block;
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .tagline {
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: var(--folium-leaf);
+            margin-bottom: 16px;
+            letter-spacing: -0.01em;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 36px;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 28px;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--folium-blue), var(--folium-indigo));
+            color: #ffffff;
+            box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(37, 99, 235, 0.6);
+        }
+
+        .btn-secondary {
+            background: var(--card-bg);
+            color: var(--text-primary);
+            border: 1px solid var(--card-border);
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* Features */
+        .features {
+            padding: 60px 0;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 24px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 20px;
+            padding: 32px;
+            backdrop-filter: blur(12px);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .card-icon {
+            font-size: 2rem;
+            margin-bottom: 16px;
+            display: inline-block;
+        }
+
+        .card h3 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.01em;
+        }
+
+        .card p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Code box */
+        .build-section {
+            padding: 60px 0;
+            text-align: center;
+        }
+
+        .terminal {
+            background: #161b22;
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: left;
+            max-width: 680px;
+            margin: 24px auto 0;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.9rem;
+            color: #7ee787;
+            overflow-x: auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        .terminal span.comment {
+            color: var(--text-secondary);
+        }
+
+        /* Footer */
+        footer {
+            padding: 60px 0 40px;
+            text-align: center;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            border-top: 1px solid var(--card-border);
+            margin-top: 40px;
+        }
+
+        footer a {
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+
+    <header class="container">
+        <div class="icon-wrapper">
+            <img src="assets/app-icon.png" alt="Folium App Icon" class="app-icon">
+        </div>
+        <h1>Folium</h1>
+        <div class="tagline">Encuentra. Obtén. Organiza.</div>
+        <p class="subtitle">
+            La utilidad documental nativa para macOS. Diseñada con precisión para transformar enlaces web en documentos identificados, validados y organizados en tu biblioteca local.
+        </p>
+
+        <div class="cta-buttons">
+            <a href="https://github.com/AtelierMinuit/Folium" class="btn btn-primary">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                Ver en GitHub
+            </a>
+            <a href="https://github.com/AtelierMinuit/Folium/releases" class="btn btn-secondary">
+                Descargar Release
+            </a>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="features">
+            <div class="card">
+                <div class="card-icon">🎯</div>
+                <h3>Flujo de 2 Pasos</h3>
+                <p>Inspección silenciosa antes de descargar. Verifica portada, autor y páginas antes de transferir datos pesados a tu disco.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">📂</div>
+                <h3>Biblioteca Dual</h3>
+                <p>Navega visualmente mediante la cuadrícula de Portadas renderizadas o utiliza la Lista detallada con filtros instantáneos.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">🔍</div>
+                <h3>Inspector Técnico (⌥⌘I)</h3>
+                <p>Accede a encabezados HTTP, Server, ETag, Content-Length y al log completo de eventos sin sobrecargar la interfaz principal.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">🛡️</div>
+                <h3>Deduplicación Criptográfica</h3>
+                <p>Validación estricta de encabezados %PDF- y hash SHA-256 en bloques de 64 KB vía CryptoKit para evitar duplicados.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">🔒</div>
+                <h3>100% Local & Privado</h3>
+                <p>Sin rastreadores, sin analítica y sin telemetría. App Sandbox y Hardened Runtime activos según las directrices de Apple.</p>
+            </div>
+
+            <div class="card">
+                <div class="card-icon">⚡</div>
+                <h3>macOS Nativo</h3>
+                <p>Construido con Swift 6, SwiftUI, SwiftData y Swift Concurrency. Rendimiento óptimo en Apple Silicon (arm64).</p>
+            </div>
+        </section>
+
+        <section class="build-section">
+            <h2>Compilación Rápida</h2>
+            <p style="color: var(--text-secondary); margin-top: 8px;">Compila Folium directamente desde la terminal con Xcode:</p>
+
+            <div class="terminal">
+                <span class="comment"># 1. Clonar el repositorio</span><br>
+                git clone https://github.com/AtelierMinuit/Folium.git<br>
+                cd Folium<br><br>
+                <span class="comment"># 2. Compilar binario Release</span><br>
+                xcodebuild -scheme Folium -configuration Release build<br><br>
+                <span class="comment"># 3. Disfrutar de Folium</span><br>
+                open build/Folium.app
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>Folium es software de código abierto publicado bajo la licencia <a href="https://github.com/AtelierMinuit/Folium/blob/main/LICENSE">MIT</a>.</p>
+            <p style="margin-top: 8px; font-size: 0.8rem; color: #484f58;">Hecho con ❤️ para macOS.</p>
+        </div>
+    </footer>
+
+</body>
+</html>

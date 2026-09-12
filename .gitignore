@@ -4,5 +4,8 @@
 xcuserdata/
 DerivedData/
 .swiftpm/
-*.xcodeproj
+build/
+*.app
 ScribeMac.app
+Folium.app
+

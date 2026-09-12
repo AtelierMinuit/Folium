@@ -211,7 +211,7 @@ class FixtureHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Type", "application/pdf")
             self.send_header("Content-Length", str(len(VALID_PDF)))
             self.send_header("ETag", '"lab-pdf-v1"')
-            self.send_header("Server", "ScribeMac-Lab/1.0")
+            self.send_header("Server", "Folium-Lab/1.0")
             self.send_header("Accept-Ranges", "bytes")
             self.end_headers()
         else:
@@ -308,7 +308,7 @@ class FixtureHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(VALID_PDF)))
             self.send_header("Content-Disposition", 'attachment; filename="lab-publico.pdf"')
             self.send_header("ETag", '"lab-pdf-v1"')
-            self.send_header("Server", "ScribeMac-Lab/1.0")
+            self.send_header("Server", "Folium-Lab/1.0")
             self.send_header("Accept-Ranges", "bytes")
             self.end_headers()
             self.wfile.write(VALID_PDF)

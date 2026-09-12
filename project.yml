@@ -18,6 +18,8 @@ targets:
       SWIFT_VERSION: 6.0
       SWIFT_STRICT_CONCURRENCY: complete
       GENERATE_INFOPLIST_FILE: NO
+      ENABLE_APP_SANDBOX: YES
+      ENABLE_HARDENED_RUNTIME: YES
 
   FoliumCore:
     type: library.static
@@ -41,3 +43,4 @@ targets:
     settings:
       SWIFT_VERSION: 6.0
       SWIFT_STRICT_CONCURRENCY: complete
+      GENERATE_INFOPLIST_FILE: YES

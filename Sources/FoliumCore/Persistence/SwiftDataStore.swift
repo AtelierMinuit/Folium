@@ -12,20 +12,27 @@ public final class SwiftDataStore {
     }
 
     public init(inMemory: Bool = false) {
+        let schema = Schema([
+            DocumentRecord.self,
+            DownloadRecord.self,
+            ProviderRecord.self
+        ])
+        let configuration = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: inMemory
+        )
         do {
-            let schema = Schema([
-                DocumentRecord.self,
-                DownloadRecord.self,
-                ProviderRecord.self
-            ])
-            let configuration = ModelConfiguration(
-                schema: schema,
-                isStoredInMemoryOnly: inMemory
-            )
             self.container = try ModelContainer(for: schema, configurations: [configuration])
             AppLogger.database.info("SwiftData ModelContainer inicializado correctamente (inMemory: \(inMemory)).")
         } catch {
-            fatalError("Error crítico al inicializar SwiftData ModelContainer: \(error.localizedDescription)")
+            AppLogger.database.error("Fallo al inicializar ModelContainer persistente: \(error.localizedDescription). Degradando a almacenamiento en memoria.")
+            let fallbackConfig = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+            do {
+                self.container = try ModelContainer(for: schema, configurations: [fallbackConfig])
+            } catch {
+                AppLogger.database.fault("Fallo crítico irrecuperable creando contenedor en memoria: \(error.localizedDescription)")
+                preconditionFailure("No se pudo instanciar un contenedor SwiftData: \(error.localizedDescription)")
+            }
         }
     }
 
